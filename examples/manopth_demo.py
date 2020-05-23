@@ -19,7 +19,7 @@ if __name__ == '__main__':
         help="Disable display output of ManoLayer given random inputs")
     parser.add_argument('--side', default='left', choices=['left', 'right'])
     parser.add_argument('--random_shape', action='store_true', help="Random hand shape")
-    parser.add_argument('--rand_mag', type=float, default=1, help="Controls pose variability")
+    parser.add_argument('--rand_mag', type=float, default=1, help="Controls pose variablity")
     parser.add_argument(
         '--flat_hand_mean',
         action='store_true',
