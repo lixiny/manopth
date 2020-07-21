@@ -1,6 +1,13 @@
 Manopth
 =======
 
+**change log**
+* Return (axisang, transf_global) at the 3rd position of ManoLayer
+* Add verts, joints, axes in `pyrender`.
+* Return joints, verts in `meter` instead of `mm`
+
+
+
 [MANO](http://mano.is.tue.mpg.de) layer for [PyTorch](https://pytorch.org/) (tested with v0.4 and v1.x)
 
 ManoLayer is a differentiable PyTorch layer that deterministically maps from pose and shape parameters to hand joints and vertices.
@@ -91,7 +98,7 @@ To be able to import and use `ManoLayer` in another project, go to your `manopth
 
 You can now use `from manopth import ManoLayer` in this other project!
 
-# Usage 
+# Usage
 
 ## Minimal usage script
 
@@ -117,19 +124,17 @@ random_shape = torch.rand(batch_size, 10)
 random_pose = torch.rand(batch_size, ncomps + 3)
 
 # Forward pass through MANO layer
-hand_verts, hand_joints = mano_layer(random_pose, random_shape)
+hand_verts, hand_joints, (axisang, transf_global) = mano_layer(random_pose, random_shape)
 demo.display_hand({'verts': hand_verts, 'joints': hand_joints}, mano_faces=mano_layer.th_faces)
 ```
 
-Result :
+Visualize :
 
-![random hand](assets/random_hand.png)
+<img src="assets/random_hand.png" height="240"> <img src="assets/render_hand.png" height="240">
 
-## Demo 
 
-With more options, forward and backward pass, and a loop for quick profiling, look at [examples/manopth_demo.py](examples/manopth_demo.py).
-
+## Demo
 You can run it locally with:
 
-`python examples/manopth_demo.py`
+`python examples/app.py`
 

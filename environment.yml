@@ -10,3 +10,6 @@ dependencies:
   - git
   - pip:
     - git+https://github.com/hassony2/chumpy.git
+    - trimesh
+    - pyrender
+

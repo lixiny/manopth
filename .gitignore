@@ -2,6 +2,7 @@
 *.bak
 *_bak.py
 
+.vscode/
 .cache/
 __pycache__/
 build/
