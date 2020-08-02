@@ -21,7 +21,8 @@ def main(args):
         use_pca=args.use_pca,
         ncomps=ncomps,
         flat_hand_mean=args.flat_hand_mean,
-        center_idx=9
+        center_idx=9,
+        return_pose=True
     )
     faces = np.array(mano_layer.th_faces).astype(np.long)
 

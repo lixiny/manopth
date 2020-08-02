@@ -25,7 +25,8 @@ class ManoLayer(Module):
                  use_pca=True,
                  root_rot_mode='axisang',
                  joint_rot_mode='axisang',
-                 robust_rot=False):
+                 robust_rot=False,
+                 return_pose=False):
         """
         Args:
             center_idx: index of center joint in our computations,
@@ -48,6 +49,7 @@ class ManoLayer(Module):
         else:
             self.rot = 6
         self.flat_hand_mean = flat_hand_mean
+        self.return_pose = return_pose
         self.side = side
         self.use_pca = use_pca
         self.joint_rot_mode = joint_rot_mode
@@ -272,4 +274,7 @@ class ManoLayer(Module):
         # Scale to milimeters
         # th_verts = th_verts * 1000
         # th_jtr = th_jtr * 1000
-        return th_verts, th_jtr, (th_full_pose, th_results_global)
+        if self.return_pose:
+            return th_verts, th_jtr, (th_full_pose, th_results_global)
+        else:
+            return th_verts, th_jtr
