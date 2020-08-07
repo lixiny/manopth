@@ -46,7 +46,7 @@ def main(args):
     transl = transl[np.newaxis, :]
 
     # Forward pass through MANO layer
-    vertices, joints, (_, transf) = mano_layer(random_pose, random_shape)
+    vertices, joints, transf = mano_layer(random_pose, random_shape)
 
     joints = np.array(joints[0])
     vertices = np.array(vertices[0])
