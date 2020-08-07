@@ -88,8 +88,7 @@ class ManoLayer(Module):
                              torch.Tensor(smpl_data['f'].astype(np.int32)).long())
 
         # Get hand mean
-        hands_mean = np.zeros(hands_components.shape[1]
-                              ) if flat_hand_mean else smpl_data['hands_mean']
+        hands_mean = np.zeros(hands_components.shape[1]) if flat_hand_mean else smpl_data['hands_mean']
         hands_mean = hands_mean.copy()
         th_hands_mean = torch.Tensor(hands_mean).unsqueeze(0)
         if self.use_pca or self.joint_rot_mode == 'axisang':
@@ -265,8 +264,13 @@ class ManoLayer(Module):
                 center_joint = th_jtr[:, self.center_idx].unsqueeze(1)
                 th_jtr = th_jtr - center_joint
                 th_verts = th_verts - center_joint
-                th_results_global[:, :, :3, 3] -= center_joint
 
+                global_rot = th_results_global[:, :, :3, :3] #(B, 16, 3, 3)
+                global_t = th_results_global[:, :, :3, 3:] #(B, 16, 3, 1)
+                global_t = global_t - center_joint.unsqueeze(-1)
+                results_global = torch.cat([global_rot, global_t], dim=3) #(B, 16, 3, 4)
+                results_global = th_with_zeros(results_global.view(-1, 3, 4))
+                results_global = results_global.view(batch_size, 16, 4, 4)
         else:
             th_jtr = th_jtr + th_trans.unsqueeze(1)
             th_verts = th_verts + th_trans.unsqueeze(1)
@@ -275,6 +279,6 @@ class ManoLayer(Module):
         # th_verts = th_verts * 1000
         # th_jtr = th_jtr * 1000
         if self.return_pose:
-            return th_verts, th_jtr, (th_full_pose, th_results_global)
+            return th_verts, th_jtr, results_global
         else:
             return th_verts, th_jtr
