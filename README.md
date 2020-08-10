@@ -2,7 +2,7 @@ Manopth
 =======
 
 **change log**
-* Return (axisang, transf_global) at the 3rd position of ManoLayer
+* Additionally return transf_global at the 3rd position of ManoLayer
 * Add verts, joints, axes in `pyrender`.
 * Return joints, verts in `meter` instead of `mm`
 
@@ -62,7 +62,7 @@ The training code associated with this paper, compatible with manopth can be fou
 
 ## Get code and dependencies
 
-- `git clone https://github.com/hassony2/manopth`
+- `git clone https://github.com/lixiny/manopth`
 - `cd manopth`
 - Install the dependencies listed in [environment.yml](environment.yml)
   - In an existing conda environment, `conda env update -f environment.yml`
