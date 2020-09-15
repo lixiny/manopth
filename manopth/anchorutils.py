@@ -10,6 +10,15 @@ def anchor_load_driver(inpath):
     return: (face vert index, anchor weight, merged vertex assignment, anchor mapping)
     """
     anchor_root = os.path.join(inpath, "anchor")
+    face_vert_idx, anchor_weight, merged_vertex_assignment, anchor_mapping = anchor_load(anchor_root)
+    return face_vert_idx, anchor_weight, merged_vertex_assignment, anchor_mapping
+
+
+def anchor_load(anchor_root):
+    """
+    this function exists for anchor layer use exclusively
+    return: (face vert index, anchor weight, merged vertex assignment, anchor mapping)
+    """
     # face vert idx
     face_vert_idx_path = os.path.join(anchor_root, "face_vertex_idx.txt")
     face_vert_idx = np.loadtxt(face_vert_idx_path, dtype=np.int)
@@ -35,6 +44,23 @@ def recover_anchor(vertices, idx, weights):
     weights_2 = weights[:, 1:2]
     rebuilt_anchors = weights_1 * base_vec_1 + weights_2 * base_vec_2
     origins = indexed_vertices[:, 0, :]
+    rebuilt_anchors = rebuilt_anchors + origins
+    return rebuilt_anchors
+
+
+def recover_anchor_batch(vertices, idx, weights):
+    # vertices = TENSOR[NBATCH, 778, 3]
+    # idx = TENSOR[1, 32, 3]
+    # weights = TENSOR[1, 32, 2]
+    batch_size = vertices.shape[0]
+    batch_idx = torch.arange(batch_size)[:, None, None]  # TENSOR[NBATCH, 1, 1]
+    indexed_vertices = vertices[batch_idx, idx, :]  # TENSOR[NBATCH, 32, 3, 3]
+    base_vec_1 = indexed_vertices[:, :, 1, :] - indexed_vertices[:, :, 0, :]  # TENSOR[NBATCH, 32, 3]
+    base_vec_2 = indexed_vertices[:, :, 2, :] - indexed_vertices[:, :, 0, :]  # TENSOR[NBATCH, 32, 3]
+    weights_1 = weights[:, :, 0:1]  # TENSOR[1, 32, 1]
+    weights_2 = weights[:, :, 1:2]  # TENSOR[1, 32, 1]
+    rebuilt_anchors = weights_1 * base_vec_1 + weights_2 * base_vec_2  # TENSOR[NBATCH, 32, 3]
+    origins = indexed_vertices[:, :, 0, :]  # TENSOR[NBATCH, 32, 3]
     rebuilt_anchors = rebuilt_anchors + origins
     return rebuilt_anchors
 
