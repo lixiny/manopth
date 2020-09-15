@@ -12,9 +12,9 @@ class AnchorLayer(Module):
         super().__init__()
 
         face_vert_idx, anchor_weight, merged_vertex_assignment, anchor_mapping = anchor_load(anchor_root)
-        self.register_buffer("face_vert_idx", torch.from_numpy(face_vert_idx).unsqueeze(0))
-        self.register_buffer("anchor_weight", torch.from_numpy(anchor_weight).unsqueeze(0))
-        self.register_buffer("merged_vertex_assignment", torch.from_numpy(merged_vertex_assignment))
+        self.register_buffer("face_vert_idx", torch.from_numpy(face_vert_idx).long().unsqueeze(0))
+        self.register_buffer("anchor_weight", torch.from_numpy(anchor_weight).float().unsqueeze(0))
+        self.register_buffer("merged_vertex_assignment", torch.from_numpy(merged_vertex_assignment).long())
         self.anchor_mapping = anchor_mapping
 
     def forward(self, vertices):
