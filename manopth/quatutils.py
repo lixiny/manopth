@@ -163,3 +163,59 @@ def angle_axis_to_quaternion(angle_axis: torch.Tensor) -> torch.Tensor:
     quaternion[..., 1:2] += a1 * k
     quaternion[..., 2:3] += a2 * k
     return torch.cat([w, quaternion], dim=-1)
+
+
+def quaternion_to_rotation_matrix(quaternion: torch.Tensor) -> torch.Tensor:
+    r"""Convert a quaternion to a rotation matrix.
+    The quaternion vector has components in (w, x, y, z) format.
+
+    Adapted from ceres C++ library: ceres-solver/include/ceres/rotation.h
+
+    Args:
+        quaternion (torch.Tensor): tensor with quaternion.
+
+    Return:
+        torch.Tensor: tensor with quaternion.
+
+    Shape:
+        - Input: :math:`(*, 4)` where `*` means, any number of dimensions
+        - Output: :math:`(*, 3, 3)`
+
+    Example:
+        >>> q = torch.rand(2, 4)  # Nx4
+        >>> rotmat = quaternion_to_rotation_matrix(q)  # Nx3x3
+    """
+    original_shape = quaternion.shape  # (*, 4)
+    asterisk_shape = original_shape[:-1]  # (*, )
+    # split cols of q
+    w, x, y, z = quaternion[..., 0], quaternion[..., 1], quaternion[..., 2], quaternion[..., 3]
+    # convenient terms
+    ww, wx, wy, wz = w * w, w * x, w * y, w * z
+    xx, xy, xz = x * x, x * y, x * z
+    yy, yz = y * y, y * z
+    zz = z * z
+    # compute normalizer
+    q_norm_squared = ww + xx + yy + zz  # (*, )
+    q_norm_squared = q_norm_squared.unsqueeze(-1)  # (*, 1) for broadcasting
+    # stack
+    rotation_matrix = torch.stack(
+        (
+            ww + xx - yy - zz,  # (0, 0)
+            2 * (xy - wz),  # (0, 1)
+            2 * (wy + xz),  # (0, 2)
+            2 * (wz + xy),  # (1, 0)
+            ww - xx + yy - zz,  # (1, 1)
+            2 * (yz - wx),  # (1, 2)
+            2 * (xz - wy),  # (2, 0)
+            2 * (wx + yz),  # (2, 1)
+            ww - xx - yy + zz,  # (2, 2)
+        ),
+        dim=-1,
+    )  # (*, 9)
+    # normalize
+    rotation_matrix = rotation_matrix / q_norm_squared  # (*, 9)
+    # reshape
+    target_shape = tuple(list(asterisk_shape) + [3, 3])  # value = (*, 3, 3)
+    rotation_matrix = rotation_matrix.reshape(target_shape)
+
+    return rotation_matrix
