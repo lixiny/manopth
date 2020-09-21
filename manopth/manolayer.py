@@ -7,6 +7,7 @@ from torch.nn import Module
 from mano.webuser.smpl_handpca_wrapper_HAND_only import ready_arguments
 from manopth import rodrigues_layer, rotproj, rot6d
 from manopth.tensutils import th_posemap_axisang, th_with_zeros, th_pack, subtract_flat_id, make_list
+from manopth.quatutils import quaternion_to_angle_axis, quaternion_inv, quaternion_mul, quaternion_to_rotation_matrix
 
 
 class ManoLayer(Module):
@@ -47,33 +48,73 @@ class ManoLayer(Module):
             ncomps: number of PCA components form pose space (<45)
             side: 'right' or 'left'
             use_pca: Use PCA decomposition for pose space.
-            joint_rot_mode: 'axisang' or 'rotmat', ignored if use_pca
+            root_rot_mode: 'axisang' or 'rotmat' or 'quat',
+            joint_rot_mode: 'axisang' or 'rotmat' or 'quat', ignored if use_pca
         """
         super().__init__()
 
         self.center_idx = center_idx
         self.robust_rot = robust_rot
+
+        # check root_rot_mode feasible, and set self.rot
         if root_rot_mode == "axisang":
             self.rot = 3
-        else:
+        elif root_rot_mode == "rotmat":
             self.rot = 6
+        elif root_rot_mode == "quat":
+            self.rot = 4
+        else:
+            raise KeyError(
+                "root_rot_mode not found. shoule be one of 'axisang' or 'rotmat' or 'quat'. got {}".format(root_rot_mode)
+            )
+
+        # todo: flat_hand_mean have issues
         self.flat_hand_mean = flat_hand_mean
+
+        # toggle extra return information
         self.return_pose = return_pose
         self.return_angle_axis = return_angle_axis
+
+        # record side of hands
         self.side = side
+
+        # check use_pca and joint_rot_mode
+        if use_pca and joint_rot_mode != "axisang":
+            raise TypeError("if use_pca, joint_rot_mode must be 'axisang'. got {}".format(joint_rot_mode))
+        # record use_pca flag and joint_rot_mode
         self.use_pca = use_pca
         self.joint_rot_mode = joint_rot_mode
-        self.root_rot_mode = root_rot_mode
+        # self.ncomps only work in axisang mode
         if use_pca:
             self.ncomps = ncomps
         else:
             self.ncomps = 45
 
+        # do more checks on root_rot_mode, in case mode error
+        if self.joint_rot_mode == "axisang":
+            # add restriction to root_rot_mode
+            if root_rot_mode not in ["axisang", "rotmat"]:
+                err_msg = "rot_mode not compatible, "
+                err_msg += "when joint_rot_mode is 'axisang', root_rot_mode should be one of "
+                err_msg += "'axisang' or 'rotmat', got {}".format(root_rot_mode)
+                raise KeyError(err_msg)
+        else:
+            # for 'rotmat' or 'quat', there rot_mode must be same for joint and root
+            if root_rot_mode != self.joint_rot_mode:
+                err_msg = "rot_mode not compatible, "
+                err_msg += "should get the same rot mode for joint and root, "
+                err_msg += "got {} for root and {} for joint".format(root_rot_mode, self.joint_rot_mode)
+                raise KeyError(err_msg)
+        # record root_rot_mode
+        self.root_rot_mode = root_rot_mode
+
+        # load model according to side flag
         if side == "right":
             self.mano_path = os.path.join(mano_root, "MANO_RIGHT.pkl")
         elif side == "left":
             self.mano_path = os.path.join(mano_root, "MANO_LEFT.pkl")
 
+        # parse and register stuff
         smpl_data = ready_arguments(self.mano_path)
 
         hands_components = smpl_data["hands_components"]
@@ -97,9 +138,18 @@ class ManoLayer(Module):
             self.register_buffer("th_hands_mean", th_hands_mean)
             selected_components = hands_components[:ncomps]
             self.register_buffer("th_selected_comps", torch.Tensor(selected_components))
-        else:
+        elif self.joint_rot_mode == "rotmat":
             th_hands_mean_rotmat = rodrigues_layer.batch_rodrigues(th_hands_mean.view(15, 3)).reshape(15, 3, 3)
             self.register_buffer("th_hands_mean_rotmat", th_hands_mean_rotmat)
+        elif self.joint_rot_mode == "quat":
+            # TODO deal with flat hand mean
+            self.register_buffer("th_hands_mean_quat", None)
+        else:
+            raise KeyError(
+                "joint_rot_mode not found. shoule be one of 'axisang' or 'rotmat' or 'quat'. got {}".format(
+                    self.joint_rot_mode
+                )
+            )
 
         # Kinematic chain params
         self.kintree_table = smpl_data["kintree_table"]
@@ -150,18 +200,35 @@ class ManoLayer(Module):
                     root_rot = rot6d.robust_compute_rotation_matrix_from_ortho6d(th_full_pose[:, :6])
                 else:
                     root_rot = rot6d.compute_rotation_matrix_from_ortho6d(th_full_pose[:, :6])
-        else:
+        elif self.joint_rot_mode == "rotmat":
             assert (
                 th_pose_coeffs.dim() == 4
-            ), "When not self.use_pca, " "th_pose_coeffs should have 4 dims, got {}".format(th_pose_coeffs.dim())
+            ), "When using rot mode 'rotmat', " "th_pose_coeffs should have 4 dims, got {}".format(th_pose_coeffs.dim())
             assert th_pose_coeffs.shape[2:4] == (3, 3), (
-                "When not self.use_pca, th_pose_coeffs have 3x3 matrix for two"
+                "When using rot mode 'rotmat', th_pose_coeffs have 3x3 matrix for two"
                 "last dims, got {}".format(th_pose_coeffs.shape[2:4])
             )
             th_pose_rots = rotproj.batch_rotprojs(th_pose_coeffs)
             th_rot_map = th_pose_rots[:, 1:].view(batch_size, -1)
             th_pose_map = subtract_flat_id(th_rot_map)
             root_rot = th_pose_rots[:, 0]
+        elif self.joint_rot_mode == "quat":
+            # we need th_rot_map, th_pose_map, root_rot
+            # though do no assertion
+            # th_pose_coeffs should be [B, 4 + 15 * 4] = [B, 64]
+            batch_size = th_pose_coeffs.shape[0]
+            th_pose_coeffs = th_pose_coeffs.view((batch_size, 16, 4))  # [B. 16, 4]
+            all_rots = quaternion_to_rotation_matrix(th_pose_coeffs)  # [B, 16, 3, 3]
+            # flatten things out
+            root_rot = all_rots[:, 0, :, :]  # [B, 3, 3]
+            th_rot_map = all_rots[:, 1:, :].view((batch_size, -1))  # [B, 15 * 9]
+            th_pose_map = subtract_flat_id(th_rot_map)
+        else:
+            raise KeyError(
+                "joint_rot_mode not found. shoule be one of 'axisang' or 'rotmat' or 'quat'. got {}".format(
+                    self.joint_rot_mode
+                )
+            )
 
         # Full axis angle representation with root joint
         if th_betas is None or th_betas.numel() == 1:

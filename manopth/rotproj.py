@@ -2,6 +2,7 @@ import torch
 
 
 def batch_rotprojs(batches_rotmats):
+    device = batches_rotmats.device
     proj_rotmats = []
     for batch_idx, batch_rotmats in enumerate(batches_rotmats):
         proj_batch_rotmats = []
@@ -15,7 +16,7 @@ def batch_rotprojs(batches_rotmats):
             if orth_det < 0:
                 rotmat[:, 2] = -1 * rotmat[:, 2]
 
-            rotmat = rotmat.cuda()
+            rotmat = rotmat.to(device)
             proj_batch_rotmats.append(rotmat)
         proj_rotmats.append(torch.stack(proj_batch_rotmats))
     return torch.stack(proj_rotmats)
