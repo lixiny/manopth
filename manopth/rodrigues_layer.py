@@ -21,9 +21,7 @@ def quat2mat(quat):
     """
     norm_quat = quat
     norm_quat = norm_quat / norm_quat.norm(p=2, dim=1, keepdim=True)
-    w, x, y, z = norm_quat[:, 0], norm_quat[:, 1], norm_quat[:,
-                                                             2], norm_quat[:,
-                                                                           3]
+    w, x, y, z = norm_quat[:, 0], norm_quat[:, 1], norm_quat[:, 2], norm_quat[:, 3]
 
     batch_size = quat.size(0)
 
@@ -31,17 +29,25 @@ def quat2mat(quat):
     wx, wy, wz = w * x, w * y, w * z
     xy, xz, yz = x * y, x * z, y * z
 
-    rotMat = torch.stack([
-        w2 + x2 - y2 - z2, 2 * xy - 2 * wz, 2 * wy + 2 * xz, 2 * wz + 2 * xy,
-        w2 - x2 + y2 - z2, 2 * yz - 2 * wx, 2 * xz - 2 * wy, 2 * wx + 2 * yz,
-        w2 - x2 - y2 + z2
-    ],
-                         dim=1).view(batch_size, 3, 3)
+    rotMat = torch.stack(
+        [
+            w2 + x2 - y2 - z2,
+            2 * xy - 2 * wz,
+            2 * wy + 2 * xz,
+            2 * wz + 2 * xy,
+            w2 - x2 + y2 - z2,
+            2 * yz - 2 * wx,
+            2 * xz - 2 * wy,
+            2 * wx + 2 * yz,
+            w2 - x2 - y2 + z2,
+        ],
+        dim=1,
+    ).view(batch_size, 3, 3)
     return rotMat
 
 
 def batch_rodrigues(axisang):
-    #axisang N x 3
+    # axisang N x 3
     axisang_norm = torch.norm(axisang + 1e-8, p=2, dim=1)
     angle = torch.unsqueeze(axisang_norm, -1)
     axisang_normalized = torch.div(axisang, angle)
@@ -60,10 +66,10 @@ def th_get_axis_angle(vector):
     return axes, angle
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', default=1, type=int)
-    parser.add_argument('--cuda', action='store_true')
+    parser.add_argument("--batch_size", default=1, type=int)
+    parser.add_argument("--cuda", action="store_true")
     args = parser.parse_args()
 
     argutils.print_args(args)
@@ -75,15 +81,15 @@ if __name__ == '__main__':
     if args.cuda:
         inputs = inputs.cuda()
     # outputs = batch_rodrigues(inputs)
-    test_function = gradcheck(batch_rodrigues, (inputs_var, ))
-    print('batch test passed !')
+    test_function = gradcheck(batch_rodrigues, (inputs_var,))
+    print("batch test passed !")
 
     inputs = torch.rand(rot)
     inputs_var = Variable(inputs.double(), requires_grad=True)
-    test_function = gradcheck(th_cv2_rod_sub_id.apply, (inputs_var, ))
-    print('th_cv2_rod test passed')
+    test_function = gradcheck(th_cv2_rod_sub_id.apply, (inputs_var,))
+    print("th_cv2_rod test passed")
 
     inputs = torch.rand(rot)
     inputs_var = Variable(inputs.double(), requires_grad=True)
-    test_th = gradcheck(th_cv2_rod.apply, (inputs_var, ))
-    print('th_cv2_rod_id test passed !')
+    test_th = gradcheck(th_cv2_rod.apply, (inputs_var,))
+    print("th_cv2_rod_id test passed !")

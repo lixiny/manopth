@@ -1,11 +1,12 @@
 # from https://github.com/lixiny/bihand/blob/master/bihand/utils/quatutils.py
+# modify quat format from x,y,z,w to w,x,y,z
 import torch
 import torch.nn.functional as torch_f
 
 
 def normalize_quaternion(quaternion: torch.Tensor, eps: float = 1e-12) -> torch.Tensor:
     r"""Normalizes a quaternion.
-    The quaternion should be in (x, y, z, w) format.
+    The quaternion should be in (w, x, y, z) format.
 
     Args:
         quaternion (torch.Tensor): a tensor containing a quaternion to be
@@ -17,9 +18,9 @@ def normalize_quaternion(quaternion: torch.Tensor, eps: float = 1e-12) -> torch.
         torch.Tensor: the normalized quaternion of shape :math:`(*, 4)`.
 
     Example:
-        >>> quaternion = torch.tensor([1., 0., 1., 0.])
+        >>> quaternion = torch.tensor([0., 1., 0., 1.])
         >>> kornia.normalize_quaternion(quaternion)
-        tensor([0.7071, 0.0000, 0.7071, 0.0000])
+        tensor([0.000, 0.7071, 0.0000, 0.7071])
     """
     if not isinstance(quaternion, torch.Tensor):
         raise TypeError("Input type is not a torch.Tensor. Got {}".format(type(quaternion)))
@@ -32,14 +33,14 @@ def normalize_quaternion(quaternion: torch.Tensor, eps: float = 1e-12) -> torch.
 def quaternion_inv(q):
     """
     inverse quaternion(s) q
-    The quaternion should be in (x, y, z, w) format.
+    The quaternion should be in (w, x, y, z) format.
     Expects  tensors of shape (*, 4), where * denotes any number of dimensions.
     Returns q*r as a tensor of shape (*, 4).
     """
     assert q.shape[-1] == 4
 
-    q_conj = q[..., :3] * -1.0
-    q_conj = torch.cat((q_conj, q[..., 3:]), dim=-1)
+    q_conj = q[..., 1:] * -1.0
+    q_conj = torch.cat((q[..., 0:1], q_conj), dim=-1)
     q_norm = torch.norm(q, dim=-1, keepdim=True)
     return q_conj / q_norm
 
@@ -47,7 +48,7 @@ def quaternion_inv(q):
 def quaternion_mul(q, r):
     """
     Multiply quaternion(s) q with quaternion(s) r.
-    The quaternion should be in (x, y, z, w) format.
+    The quaternion should be in (w, x, y, z) format.
     Expects two equally-sized tensors of shape (*, 4), where * denotes any number of dimensions.
     Returns q*r as a tensor of shape (*, 4).
     """
@@ -60,16 +61,16 @@ def quaternion_mul(q, r):
     # terms; ( * , 4, 4)
     terms = torch.bmm(r.view(-1, 4, 1), q.view(-1, 1, 4))
 
-    w = terms[:, 3, 3] - terms[:, 0, 0] - terms[:, 1, 1] - terms[:, 2, 2]
-    x = terms[:, 3, 0] + terms[:, 0, 3] + terms[:, 1, 2] - terms[:, 2, 1]
-    y = terms[:, 3, 1] - terms[:, 0, 2] + terms[:, 1, 3] + terms[:, 2, 0]
-    z = terms[:, 3, 2] + terms[:, 0, 1] - terms[:, 1, 0] + terms[:, 2, 3]
-    return torch.stack((x, y, z, w), dim=1).view(original_shape)
+    w = terms[:, 0, 0] - terms[:, 1, 1] - terms[:, 2, 2] - terms[:, 3, 3]
+    x = terms[:, 0, 1] + terms[:, 1, 0] + terms[:, 2, 3] - terms[:, 3, 2]
+    y = terms[:, 0, 2] - terms[:, 1, 3] + terms[:, 2, 0] + terms[:, 3, 1]
+    z = terms[:, 0, 3] + terms[:, 1, 2] - terms[:, 2, 1] + terms[:, 3, 0]
+    return torch.stack((w, x, y, z), dim=1).view(original_shape)
 
 
 def quaternion_to_angle_axis(quaternion: torch.Tensor) -> torch.Tensor:
     """Convert quaternion vector to angle axis of rotation.
-    The quaternion should be in (x, y, z, w) format.
+    The quaternion should be in (w, x, y, z) format.
 
     Adapted from ceres C++ library: ceres-solver/include/ceres/rotation.h
 
@@ -117,7 +118,7 @@ def quaternion_to_angle_axis(quaternion: torch.Tensor) -> torch.Tensor:
 
 def angle_axis_to_quaternion(angle_axis: torch.Tensor) -> torch.Tensor:
     r"""Convert an angle axis to a quaternion.
-    The quaternion vector has components in (x, y, z, w) format.
+    The quaternion vector has components in (w, x, y, z) format.
 
     Adapted from ceres C++ library: ceres-solver/include/ceres/rotation.h
 
