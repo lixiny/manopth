@@ -219,3 +219,41 @@ def quaternion_to_rotation_matrix(quaternion: torch.Tensor) -> torch.Tensor:
     rotation_matrix = rotation_matrix.reshape(target_shape)
 
     return rotation_matrix
+
+
+def quaternion_norm(quaternion):
+    r"""Computes norm of quaternion.
+    The quaternion should be in (w, x, y, z) format.
+
+    Args:
+        quaternion (torch.Tensor): a tensor containing a quaternion to be
+          normalized. The tensor can be of shape :math:`(*, 4)`.
+
+    Return:
+        torch.Tensor: the norm of shape :math:`(*)`.
+
+    Example:
+        >>> quaternion = torch.tensor([0., 1., 0., 1.])
+        >>> quaternion_norm(quaternion)
+        tensor(1.4142)
+    """
+    return torch.sqrt(torch.sum(torch.pow(quaternion, 2), dim=-1))
+
+
+def quaternion_norm_squared(quaternion):
+    r"""Computes norm of quaternion.
+    The quaternion should be in (w, x, y, z) format.
+
+    Args:
+        quaternion (torch.Tensor): a tensor containing a quaternion to be
+          normalized. The tensor can be of shape :math:`(*, 4)`.
+
+    Return:
+        torch.Tensor: the squared norm of shape :math:`(*)`.
+
+    Example:
+        >>> quaternion = torch.tensor([0., 1., 0., 1.])
+        >>> quaternion_norm(quaternion)
+        tensor(2.0)
+    """
+    return torch.sum(torch.pow(quaternion, 2), dim=-1)
