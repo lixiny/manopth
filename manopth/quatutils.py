@@ -257,3 +257,37 @@ def quaternion_norm_squared(quaternion):
         tensor(2.0)
     """
     return torch.sum(torch.pow(quaternion, 2), dim=-1)
+
+
+def quaternion_to_angle(quaternion: torch.Tensor) -> torch.Tensor:
+    """Convert quaternion vector to angle of rotation.
+    The quaternion should be in (w, x, y, z) format.
+
+    Args:
+        quaternion (torch.Tensor): tensor with quaternions.
+
+    Return:
+        torch.Tensor: tensor with angle of rotation.
+
+    Shape:
+        - Input: :math:`(*, 4)` where `*` means, any number of dimensions
+        - Output: :math:`(*)`
+    """
+    if not torch.is_tensor(quaternion):
+        raise TypeError("Input type is not a torch.Tensor. Got {}".format(type(quaternion)))
+
+    if not quaternion.shape[-1] == 4:
+        raise ValueError("Input must be a tensor of shape Nx4 or 4. Got {}".format(quaternion.shape))
+    # unpack input and compute conversion
+    q1: torch.Tensor = quaternion[..., 1]
+    q2: torch.Tensor = quaternion[..., 2]
+    q3: torch.Tensor = quaternion[..., 3]
+    sin_squared_theta: torch.Tensor = q1 * q1 + q2 * q2 + q3 * q3
+
+    sin_theta: torch.Tensor = torch.sqrt(sin_squared_theta)
+    cos_theta: torch.Tensor = quaternion[..., 0]
+    two_theta: torch.Tensor = 2.0 * torch.where(
+        cos_theta < 0.0, torch.atan2(-sin_theta, -cos_theta), torch.atan2(sin_theta, cos_theta)
+    )
+
+    return two_theta
