@@ -116,6 +116,28 @@ def test():
     print(get_rev_anchor_mapping(res[3]))
 
 
+def get_mask_from_index(mask: np.ndarray, total: int):
+    res = np.zeros((total,), dtype=np.int)
+    res[mask] = 1
+    return res
+
+
+def get_region_palm_mask(
+    n_region: int, palm: bool, vertex_assignment_merged: np.ndarray, hand_palm_vert_mask: np.ndarray
+):
+    palm_id = 1 if palm else 0
+    combined_mask = (vertex_assignment_merged == n_region) & (hand_palm_vert_mask == palm_id)
+    return combined_mask
+
+
+def masking_load_driver(anchor_path, palm_vert_idx_path):
+    _, _, vertex_assignment_merged, _ = anchor_load(anchor_path)
+    hand_palm_vert_idx = np.loadtxt(palm_vert_idx_path, dtype=np.int)
+    n_vert = vertex_assignment_merged.shape[0]
+    hand_palm_vert_mask = get_mask_from_index(hand_palm_vert_idx, n_vert)
+    return vertex_assignment_merged, hand_palm_vert_mask
+
+
 # testing
 if __name__ == "__main__":
     test()
