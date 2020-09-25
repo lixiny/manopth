@@ -122,11 +122,12 @@ def get_mask_from_index(mask: np.ndarray, total: int):
     return res
 
 
-def get_region_palm_mask(
-    n_region: int, palm: bool, vertex_assignment_merged: np.ndarray, hand_palm_vert_mask: np.ndarray
-):
-    palm_id = 1 if palm else 0
-    combined_mask = (vertex_assignment_merged == n_region) & (hand_palm_vert_mask == palm_id)
+def get_region_palm_mask(n_region: int, palm, vertex_assignment_merged: np.ndarray, hand_palm_vert_mask: np.ndarray):
+    if palm is not None:
+        palm_id = 1 if palm else 0
+        combined_mask = (vertex_assignment_merged == n_region) & (hand_palm_vert_mask == palm_id)
+    else:
+        combined_mask = vertex_assignment_merged == n_region
     return combined_mask
 
 
