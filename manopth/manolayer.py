@@ -214,7 +214,7 @@ class ManoLayer(Module):
                 "When using rot mode 'rotmat', th_pose_coeffs have 3x3 matrix for two"
                 "last dims, got {}".format(th_pose_coeffs.shape[2:4])
             )
-            th_full_pose = th_pose_coeffs  # ！ Dummy Assignment
+            th_full_pose = th_pose_coeffs  # ! Dummy Assignment
             th_pose_rots = rotproj.batch_rotprojs(th_pose_coeffs)
             th_rot_map = th_pose_rots[:, 1:].view(batch_size, -1)
             th_pose_map = subtract_flat_id(th_rot_map)
@@ -330,12 +330,13 @@ class ManoLayer(Module):
         if th_trans is None or bool(torch.norm(th_trans) == 0):
             if self.center_idx is not None:
                 center_joint = th_jtr[:, self.center_idx].unsqueeze(1)
-            else:  # dummy joint # (B, 1, 3)
+            else:  # ! Dummy Center Joint (B, 1, 3)
                 center_joint = torch.zeros_like(th_jtr[:, 0].unsqueeze(1))
 
             th_jtr = th_jtr - center_joint
             th_verts = th_verts - center_joint
         else:
+            # ! SHADOW THE EFFECT OF CENTER_IDX & CENTER_JOINT
             center_joint = torch.zeros_like(th_jtr[:, 0].unsqueeze(1))
             th_jtr = th_jtr + th_trans.unsqueeze(1)
             th_verts = th_verts + th_trans.unsqueeze(1)
