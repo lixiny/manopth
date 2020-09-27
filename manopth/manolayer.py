@@ -34,8 +34,8 @@ class ManoLayer(Module):
         root_rot_mode="axisang",
         joint_rot_mode="axisang",
         robust_rot=False,
-        return_pose=False,
-        return_angle_axis=False,
+        return_transf=False,
+        return_full_pose=False,
     ):
         """
         Args:
@@ -72,8 +72,8 @@ class ManoLayer(Module):
         self.flat_hand_mean = flat_hand_mean
 
         # toggle extra return information
-        self.return_pose = return_pose
-        self.return_angle_axis = return_angle_axis
+        self.return_transf = return_transf
+        self.return_full_pose = return_full_pose
 
         # record side of hands
         self.side = side
@@ -208,6 +208,7 @@ class ManoLayer(Module):
                 "When using rot mode 'rotmat', th_pose_coeffs have 3x3 matrix for two"
                 "last dims, got {}".format(th_pose_coeffs.shape[2:4])
             )
+            th_full_pose = th_pose_coeffs  # ！ Dummy Assignment
             th_pose_rots = rotproj.batch_rotprojs(th_pose_coeffs)
             th_rot_map = th_pose_rots[:, 1:].view(batch_size, -1)
             th_pose_map = subtract_flat_id(th_rot_map)
@@ -216,6 +217,7 @@ class ManoLayer(Module):
             # we need th_rot_map, th_pose_map, root_rot
             # though do no assertion
             # th_pose_coeffs should be [B, 4 + 15 * 4] = [B, 64]
+            th_full_pose = th_pose_coeffs  # ! Dummy Assignment
             batch_size = th_pose_coeffs.shape[0]
             th_pose_coeffs = th_pose_coeffs.view((batch_size, 16, 4))  # [B. 16, 4]
             all_rots = quaternion_to_rotation_matrix(th_pose_coeffs)  # [B, 16, 3, 3]
@@ -322,27 +324,33 @@ class ManoLayer(Module):
         if th_trans is None or bool(torch.norm(th_trans) == 0):
             if self.center_idx is not None:
                 center_joint = th_jtr[:, self.center_idx].unsqueeze(1)
-                th_jtr = th_jtr - center_joint
-                th_verts = th_verts - center_joint
+            else:  # dummy joint # (B, 1, 3)
+                center_joint = torch.zeros_like(th_jtr[:, 0].unsqueeze(1))
 
-                global_rot = th_results_global[:, :, :3, :3]  # (B, 16, 3, 3)
-                global_t = th_results_global[:, :, :3, 3:]  # (B, 16, 3, 1)
-                global_t = global_t - center_joint.unsqueeze(-1)
-                results_global = torch.cat([global_rot, global_t], dim=3)  # (B, 16, 3, 4)
-                results_global = th_with_zeros(results_global.view(-1, 3, 4))
-                results_global = results_global.view(batch_size, 16, 4, 4)
+            th_jtr = th_jtr - center_joint
+            th_verts = th_verts - center_joint
         else:
+            center_joint = torch.zeros_like(th_jtr[:, 0].unsqueeze(1))
             th_jtr = th_jtr + th_trans.unsqueeze(1)
             th_verts = th_verts + th_trans.unsqueeze(1)
+
+        global_rot = th_results_global[:, :, :3, :3]  # (B, 16, 3, 3)
+        global_t = th_results_global[:, :, :3, 3:]  # (B, 16, 3, 1)
+        global_t = global_t - center_joint.unsqueeze(-1) + th_trans.unsqueeze(1).unsqueeze(-1)  # (B, [16], 3, 1)
+        th_transf_global = torch.cat([global_rot, global_t], dim=3)  # (B, 16, 3, 4)
+        th_transf_global = th_with_zeros(th_transf_global.view(-1, 3, 4))
+        th_transf_global = th_transf_global.view(batch_size, 16, 4, 4)
 
         # Scale to milimeters
         # th_verts = th_verts * 1000
         # th_jtr = th_jtr * 1000
-        if self.return_pose and self.return_angle_axis:
-            return th_verts, th_jtr, results_global, th_full_pose
-        elif self.return_pose and not self.return_angle_axis:
-            return th_verts, th_jtr, results_global
-        elif not self.return_pose and self.return_angle_axis:
-            return th_verts, th_jtr, th_full_pose
-        else:
-            return th_verts, th_jtr
+        results = [th_verts, th_jtr]  # (V, J)
+
+        if self.return_transf:
+            results = results + [th_transf_global]  # (V, J, T)
+            if self.return_full_pose:
+                results = results + [th_full_pose]  # (V, J, T, so3)
+        elif self.return_full_pose:
+            results = results + [th_full_pose]  # (V, J, so3)
+
+        return tuple(results)

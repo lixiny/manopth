@@ -17,12 +17,12 @@ def main(args):
 
     # Initialize MANO layer
     mano_layer = ManoLayer(
-        mano_root='mano/models',
+        mano_root="mano/models",
         use_pca=args.use_pca,
         ncomps=ncomps,
         flat_hand_mean=args.flat_hand_mean,
         center_idx=9,
-        return_pose=True
+        return_transf=True,
     )
     faces = np.array(mano_layer.th_faces).astype(np.long)
 
@@ -42,7 +42,7 @@ def main(args):
     scene.set_pose(node_cam, pose=np.eye(4))
     vertex_colors = np.array([200, 200, 200, 150])
     joint_colors = np.array([10, 73, 233, 255])
-    transl = np.array([-225, -150, -500.0])
+    transl = np.array([0, 0, -200.0])
     transl = transl[np.newaxis, :]
 
     # Forward pass through MANO layer
@@ -70,11 +70,7 @@ def main(args):
         scene.add(joints_pcl)
 
     for tf in range(16):
-        axis = trimesh.creation.axis(
-            transform=transf[tf],
-            origin_size=3,
-            axis_length=15
-        )
+        axis = trimesh.creation.axis(transform=transf[tf], origin_size=3, axis_length=15)
         axis = pyrender.Mesh.from_trimesh(axis, smooth=False)
         scene.add(axis)
 
@@ -83,16 +79,10 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', default=1, type=int)
+    parser.add_argument("--batch_size", default=1, type=int)
     parser.add_argument(
-        '--flat_hand_mean',
-        action='store_true',
-        help="Use flat hand as mean instead of average hand pose"
+        "--flat_hand_mean", action="store_true", help="Use flat hand as mean instead of average hand pose"
     )
-    parser.add_argument(
-        '--use_pca',
-        action='store_true',
-        help="Use PCA"
-    )
+    parser.add_argument("--use_pca", action="store_true", help="Use PCA")
 
     main(parser.parse_args())

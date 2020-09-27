@@ -284,8 +284,7 @@ class ManoLayer:
 
         joint_js = np.concatenate((j, np.zeros((j.shape[0], 16, 1))), 2)
 
-        tmp2 = np.matmul(results, joint_js[..., np.newaxis])
-        results2 = (results - np.concatenate((np.zeros((*tmp2.shape[:2], 4, 3)), tmp2), 3)).transpose((0, 2, 3, 1))
+        tmp2 = np.matmul(results, joint_js[..., np.newaxis_batch_rodriguesmp2.shape[:2], 4, 3)), tmp2), 3)).transpose((0, 2, 3, 1))
 
         T = np.matmul(results2, self.weights.transpose((1, 0)))
 
