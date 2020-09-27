@@ -157,12 +157,7 @@ class ManoLayer(Module):
         self.kintree_parents = parents
 
     def forward(
-        self,
-        th_pose_coeffs,
-        th_betas=torch.zeros(1),
-        th_trans=torch.zeros(1),
-        root_palm=torch.Tensor([0]),
-        share_betas=torch.Tensor([0]),
+        self, th_pose_coeffs, th_betas=None, th_trans=None, root_palm=None, share_betas=None,
     ):
         """
         Args:
@@ -171,6 +166,17 @@ class ManoLayer(Module):
         else centers on root joint (9th joint)
         root_palm: return palm as hand root instead of wrist
         """
+        # device transger
+        device = th_pose_coeffs.device
+        if th_betas is None:
+            th_betas = torch.zeros(1).to(device)
+        if th_trans is None:
+            th_trans = torch.zeros(1).to(device)
+        if root_palm is None:
+            root_palm = torch.Tensor([0]).to(device)
+        if share_betas is None:
+            share_betas = torch.Tensor([0]).to(device)
+
         # if len(th_pose_coeffs) == 0:
         #     return th_pose_coeffs.new_empty(0), th_pose_coeffs.new_empty(0)
 
