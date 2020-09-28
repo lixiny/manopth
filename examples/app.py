@@ -34,47 +34,57 @@ def main(args):
     else:
         random_pose = torch.zeros(batch_size, ncomps + 3)
 
-    # Viewer Options
-    scene = pyrender.Scene()
-    cam = pyrender.PerspectiveCamera(yfov=np.pi / 3.0, aspectRatio=1.414)
-    node_cam = pyrender.Node(camera=cam, matrix=np.eye(4))
-    scene.add_node(node_cam)
-    scene.set_pose(node_cam, pose=np.eye(4))
-    vertex_colors = np.array([200, 200, 200, 150])
-    joint_colors = np.array([10, 73, 233, 255])
-    transl = np.array([0, 0, -200.0])
-    transl = transl[np.newaxis, :]
-
     # Forward pass through MANO layer
     vertices, joints, transf = mano_layer(random_pose, random_shape)
 
-    joints = np.array(joints[0])
-    vertices = np.array(vertices[0])
-    transf = np.array(transf[0])
+    if args.render == "plt":
+        demo.display_hand(
+            {"verts": vertices, "joints": joints}, mano_faces=mano_layer.th_faces,
+        )
+    elif args.render == "pyrender":
+        # =========================== Viewer Options >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        scene = pyrender.Scene()
+        cam = pyrender.PerspectiveCamera(yfov=np.pi / 3.0, aspectRatio=1.414)
+        node_cam = pyrender.Node(camera=cam, matrix=np.eye(4))
+        scene.add_node(node_cam)
+        scene.set_pose(node_cam, pose=np.eye(4))
+        vertex_colors = np.array([200, 200, 200, 150])
+        joint_colors = np.array([10, 73, 233, 255])
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        transl = np.array([0, 0, -200.0])
+        transl = transl[np.newaxis, :]
+        joints = np.array(joints[0])
+        vertices = np.array(vertices[0])
+        transf = np.array(transf[0])
 
-    joints = joints * 1000.0 + transl
-    vertices = vertices * 1000.0 + transl
-    transf[:, :3, 3] = transf[:, :3, 3] * 1000.0 + transl
+        joints = joints * 1000.0 + transl
+        vertices = vertices * 1000.0 + transl
+        transf[:, :3, 3] = transf[:, :3, 3] * 1000.0 + transl
 
-    tri_mesh = trimesh.Trimesh(vertices, faces, vertex_colors=vertex_colors)
-    mesh = pyrender.Mesh.from_trimesh(tri_mesh)
+        tri_mesh = trimesh.Trimesh(vertices, faces, vertex_colors=vertex_colors)
+        mesh = pyrender.Mesh.from_trimesh(tri_mesh)
+        scene.add(mesh)
 
-    scene.add(mesh)
+        # Add Joints
+        for j in range(21):
+            sm = trimesh.creation.uv_sphere(radius=2)
+            sm.visual.vertex_colors = joint_colors
+            tfs = np.tile(np.eye(4), (1, 1, 1))
+            tfs[0, :3, 3] = joints[j]
+            joints_pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
+            scene.add(joints_pcl)
 
-    for j in range(21):
-        sm = trimesh.creation.uv_sphere(radius=2)
-        sm.visual.vertex_colors = joint_colors
-        tfs = np.tile(np.eye(4), (1, 1, 1))
-        tfs[0, :3, 3] = joints[j]
-        joints_pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
-        scene.add(joints_pcl)
+        # Add Transformation
+        for tf in range(16):
+            axis = trimesh.creation.axis(transform=transf[tf], origin_size=3, axis_length=15)
+            axis = pyrender.Mesh.from_trimesh(axis, smooth=False)
+            scene.add(axis)
 
-    for tf in range(16):
-        axis = trimesh.creation.axis(transform=transf[tf], origin_size=3, axis_length=15)
-        axis = pyrender.Mesh.from_trimesh(axis, smooth=False)
-        scene.add(axis)
+        pyrender.Viewer(scene, use_raymond_lighting=True)
+    else:
+        raise ValueError(f"Unknown renderer: {args.render}")
 
-    pyrender.Viewer(scene, use_raymond_lighting=True)
+    return 0
 
 
 if __name__ == "__main__":
@@ -84,5 +94,6 @@ if __name__ == "__main__":
         "--flat_hand_mean", action="store_true", help="Use flat hand as mean instead of average hand pose"
     )
     parser.add_argument("--use_pca", action="store_true", help="Use PCA")
+    parser.add_argument("--render", choices=["plt", "pyrender"], default="pyrender", type=str)
 
     main(parser.parse_args())
