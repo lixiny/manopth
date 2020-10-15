@@ -259,7 +259,8 @@ def quaternion_norm_squared(quaternion):
     return torch.sum(torch.pow(quaternion, 2), dim=-1)
 
 
-def quaternion_to_angle(quaternion: torch.Tensor) -> torch.Tensor:
+# ! deprecated! this function doesn't work as I intended to.
+def __quaternion_to_angle(quaternion: torch.Tensor) -> torch.Tensor:
     """Convert quaternion vector to angle of rotation.
     The quaternion should be in (w, x, y, z) format.
 
