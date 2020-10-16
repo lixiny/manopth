@@ -26,6 +26,8 @@ class AxisLayer(Module):
 
         u_axis = torch.cross(l_axis, b_axis)
 
-        return b_axis / torch.norm(b_axis, dim=2, keepdim=True), u_axis / torch.norm(u_axis, dim=2,
-                                                                                     keepdim=True), l_axis / torch.norm(
-            l_axis, dim=2, keepdim=True)
+        return (
+            b_axis / torch.norm(b_axis, dim=2, keepdim=True),
+            u_axis / torch.norm(u_axis, dim=2, keepdim=True),
+            l_axis / torch.norm(l_axis, dim=2, keepdim=True),
+        )
