@@ -23,11 +23,22 @@ class UpSampleLayer(Module):
         * --- *
         """
         device = vertices.device
-        new_verts = torch.mean(vertices[faces], dim=-2)
-        new_idx_head = torch.cat([faces[..., [0, 1]], faces[..., [1, 2]], faces[..., [2, 0]]], dim=0)
-        new_idx_tail = torch.arange(vertices.shape[-2], vertices.shape[-2] + faces.shape[-2]).repeat(3).to(device)
+        batch_size = vertices.shape[0]
+        expand_vertices = vertices.unsqueeze(1).expand(-1, faces.shape[1], -1, -1)
+        expand_faces = faces.unsqueeze(-1).expand(-1, -1, -1, 3)
+        new_verts = torch.mean(torch.gather(expand_vertices, 2, expand_faces), dim=-2)
+        new_idx_head = torch.cat([faces[..., [0, 1]], faces[..., [1, 2]], faces[..., [2, 0]]], dim=-2)
+        new_idx_tail = (
+            torch.arange(vertices.shape[-2], vertices.shape[-2] + faces.shape[-2])
+            .unsqueeze(0)
+            .expand(3, -1)
+            .reshape(3 * faces.shape[-2])
+            .unsqueeze(0)
+            .expand(batch_size, -1)
+            .to(device)
+        )
 
-        new_faces = torch.cat([new_idx_head, new_idx_tail[:, None]], dim=-1)
+        new_faces = torch.cat([new_idx_head, new_idx_tail[:, :, None]], dim=-1)
         new_verts = torch.cat([vertices, new_verts], dim=-2)
         return new_verts, new_faces
 
