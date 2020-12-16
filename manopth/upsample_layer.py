@@ -4,7 +4,7 @@ from torch.nn import Module
 
 from manopth.manolayer import ManoLayer
 import open3d as o3d
-
+from functools import lru_cache
 
 # class UpSampleLayer(Module):
 #     def __init__(self):
@@ -48,6 +48,7 @@ class UpSampleLayer(Module):
         super().__init__()
 
     @staticmethod
+    @lru_cache(maxsize=256)
     def calculate_faces(faces, vn):
         edges = {}
         new_faces = []
@@ -89,9 +90,11 @@ class UpSampleLayer(Module):
         device = vertices.device
         new_vertices_idx_list, new_faces_list = [], []
         for i, fs in enumerate(faces):
-            new_vertices_idx, new_faces = self.calculate_faces(fs.detach().cpu().numpy(), len(vertices[i]))
+            tuple_faces = tuple([tuple(i) for i in fs.cpu().numpy()])
+            new_vertices_idx, new_faces = self.calculate_faces(tuple_faces, len(vertices[i]))
             new_vertices_idx_list.append(np.expand_dims(new_vertices_idx, axis=0))
             new_faces_list.append(np.expand_dims(new_faces, axis=0))
+        # TODO check the gradient
         new_vertices_idx_list = torch.from_numpy(np.vstack(new_vertices_idx_list)).long().to(device)
         new_faces_list = torch.from_numpy(np.vstack(new_faces_list)).long().to(device)
 
