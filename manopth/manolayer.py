@@ -3,6 +3,7 @@ import os
 import numpy as np
 import torch
 from torch.nn import Module
+import copy
 
 from mano.webuser.smpl_handpca_wrapper_HAND_only import ready_arguments
 from manopth import rodrigues_layer, rotproj, rot6d
@@ -127,13 +128,13 @@ class ManoLayer(Module):
 
         self.smpl_data = smpl_data
 
-        self.register_buffer("th_betas", torch.Tensor(smpl_data["betas"].r).unsqueeze(0))
-        self.register_buffer("th_shapedirs", torch.Tensor(smpl_data["shapedirs"].r))
-        self.register_buffer("th_posedirs", torch.Tensor(smpl_data["posedirs"].r))
-        self.register_buffer("th_v_template", torch.Tensor(smpl_data["v_template"].r).unsqueeze(0))
+        self.register_buffer("th_betas", torch.Tensor(np.array(smpl_data["betas"].r)).unsqueeze(0))
+        self.register_buffer("th_shapedirs", torch.Tensor(np.array(smpl_data["shapedirs"].r)))
+        self.register_buffer("th_posedirs", torch.Tensor(np.array(smpl_data["posedirs"].r)))
+        self.register_buffer("th_v_template", torch.Tensor(np.array(smpl_data["v_template"].r)).unsqueeze(0))
         self.register_buffer("th_J_regressor", torch.Tensor(np.array(smpl_data["J_regressor"].toarray())))
-        self.register_buffer("th_weights", torch.Tensor(smpl_data["weights"].r))
-        self.register_buffer("th_faces", torch.Tensor(smpl_data["f"].astype(np.int32)).long())
+        self.register_buffer("th_weights", torch.Tensor(np.array(smpl_data["weights"].r)))
+        self.register_buffer("th_faces", torch.Tensor(np.array(smpl_data["f"]).astype(np.int32)).long())
 
         # Get hand mean
         hands_mean = np.zeros(hands_components.shape[1]) if flat_hand_mean else smpl_data["hands_mean"]
